@@ -86,6 +86,33 @@ role = ADMIN
 
 Après reconnexion, l'onglet **Admin** apparaît.
 
+
+## Mise à jour design + OTP RDC/Kinshasa
+
+Cette version contient une interface plus premium : écran de connexion retravaillé, fond dynamique, cartes glassmorphism, navigation plus propre et parcours OTP adapté à la RDC.
+
+Le numéro peut être saisi en format local ou international. Exemples acceptés :
+
+```txt
+0812345678
+812345678
+243812345678
+00243812345678
++243812345678
+```
+
+L’application convertit automatiquement le numéro en format Firebase :
+
+```txt
++243812345678
+```
+
+Le guide détaillé est dans :
+
+```txt
+docs/OTP_RDC_KINSHASA.md
+```
+
 ## Fonctionnalités incluses
 
 - Connexion par email/mot de passe.

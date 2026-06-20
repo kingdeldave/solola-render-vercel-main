@@ -1,4 +1,4 @@
-// Configuration Firebase côté React.
+// Initialisation Firebase pour React + Vite + Netlify.
 // Les variables doivent être définies dans Netlify avec le préfixe VITE_.
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
@@ -23,5 +23,9 @@ export const firebaseMissingKeys = missingKeys;
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Affiche les messages Firebase Auth/reCAPTCHA en français quand Firebase le permet.
+auth.languageCode = 'fr';
+
 export const db = getFirestore(app);
 export const storage = getStorage(app);

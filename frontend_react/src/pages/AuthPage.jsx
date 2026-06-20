@@ -1,17 +1,19 @@
-// Page connexion/inscription : Firebase email et téléphone.
-import { useState } from 'react';
+// Page connexion/inscription : Firebase email et téléphone avec OTP RDC/Kinshasa.
+import { useMemo, useState } from 'react';
 import Logo from '../components/Logo';
 import {
   confirmPhoneLogin,
   loginWithEmail,
+  normalizeDrcPhoneNumber,
   registerWithEmail,
   startPhoneLogin,
+  validateDrcPhoneNumber,
 } from '../services/authService';
 import { firebaseConfigIsValid, firebaseMissingKeys } from '../services/firebase';
 import { friendlyFirebaseError } from '../utils/format';
 
 export default function AuthPage() {
-  const [tab, setTab] = useState('email');
+  const [tab, setTab] = useState('phone');
   const [mode, setMode] = useState('login');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -22,6 +24,12 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  // Prévisualise le numéro normalisé pour rassurer l'utilisateur avant l'envoi du SMS.
+  const phonePreview = useMemo(() => {
+    if (!phoneNumber.trim()) return '';
+    return normalizeDrcPhoneNumber(phoneNumber);
+  }, [phoneNumber]);
 
   async function handleEmailSubmit(event) {
     event.preventDefault();
@@ -54,12 +62,12 @@ export default function AuthPage() {
     setMessage('');
 
     try {
-      if (!phoneNumber.startsWith('+')) {
-        throw new Error('Utilise le format international, par exemple +243XXXXXXXXX.');
-      }
-      const result = await startPhoneLogin(phoneNumber);
+      const validation = validateDrcPhoneNumber(phoneNumber);
+      if (!validation.isValid) throw new Error(validation.message);
+
+      const result = await startPhoneLogin(validation.normalized);
       setConfirmationResult(result);
-      setMessage('Code SMS envoyé. Entre le code reçu.');
+      setMessage(`Code OTP envoyé au ${validation.normalized}. Entre le code reçu par SMS.`);
     } catch (err) {
       setError(friendlyFirebaseError(err));
     } finally {
@@ -83,32 +91,65 @@ export default function AuthPage() {
     }
   }
 
+  function resetPhoneFlow() {
+    setConfirmationResult(null);
+    setSmsCode('');
+    setMessage('');
+    setError('');
+  }
+
   return (
-    <main className="authScreen">
-      <section className="authHero">
-        <Logo size={86} showText />
+    <main className="authScreen authScreenPremium">
+      <section className="authHero authHeroPremium">
+        <div className="heroGlow heroGlowOne" />
+        <div className="heroGlow heroGlowTwo" />
+
+        <Logo size={92} showText />
+
         <div className="heroCopy">
-          <h2>Messagerie Solola sans Render</h2>
+          <span className="eyebrow">SOLOLA • Kinshasa Ready</span>
+          <h2>Une messagerie propre, moderne et sécurisée.</h2>
           <p>
-            Cette version utilise React, Firebase Authentication, Firestore et Firebase Storage.
-            Netlify héberge l’interface, Firebase gère la connexion et les données.
+            Interface React premium, connexion Firebase, OTP SMS pour les numéros RDC
+            et données en temps réel avec Firestore. Plus besoin de Render pour faire tourner le TP.
           </p>
+        </div>
+
+        <div className="heroStats">
+          <article>
+            <strong>+243</strong>
+            <span>OTP RDC</span>
+          </article>
+          <article>
+            <strong>Firebase</strong>
+            <span>Auth + Data</span>
+          </article>
+          <article>
+            <strong>Netlify</strong>
+            <span>Frontend</span>
+          </article>
         </div>
       </section>
 
-      <section className="authCard glassCard">
+      <section className="authCard glassCard authCardPremium">
         {!firebaseConfigIsValid && (
           <div className="alert error">
             Firebase n’est pas encore configuré : {firebaseMissingKeys.join(', ')}.
           </div>
         )}
 
-        <div className="tabRow">
+        <div className="authHeaderMini">
+          <span className="eyebrow dark">Accès sécurisé</span>
+          <h2>Connexion</h2>
+          <p>Choisis email ou téléphone. Pour Kinshasa, le numéro local est automatiquement converti en +243.</p>
+        </div>
+
+        <div className="tabRow premiumTabs">
+          <button className={tab === 'phone' ? 'active' : ''} onClick={() => setTab('phone')} type="button">
+            Téléphone RDC
+          </button>
           <button className={tab === 'email' ? 'active' : ''} onClick={() => setTab('email')} type="button">
             Email
-          </button>
-          <button className={tab === 'phone' ? 'active' : ''} onClick={() => setTab('phone')} type="button">
-            Téléphone
           </button>
         </div>
 
@@ -147,28 +188,67 @@ export default function AuthPage() {
         )}
 
         {tab === 'phone' && (
-          <div className="formStack">
+          <div className="formStack phoneOtpBox">
             {!confirmationResult ? (
               <form className="formStack" onSubmit={handleStartPhone}>
+                <div className="otpBanner">
+                  <span>🇨🇩</span>
+                  <div>
+                    <strong>Service OTP RDC/Kinshasa</strong>
+                    <small>Exemples acceptés : 0812345678, 812345678, 243812345678 ou +243812345678.</small>
+                  </div>
+                </div>
+
                 <label>
                   Numéro de téléphone
-                  <input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="+243XXXXXXXXX" />
+                  <div className="phoneInputWrap">
+                    <span>+243</span>
+                    <input
+                      value={phoneNumber}
+                      onChange={(event) => setPhoneNumber(event.target.value)}
+                      placeholder="812345678"
+                      autoComplete="tel"
+                    />
+                  </div>
                 </label>
-                <div id="recaptcha-container" />
+
+                {phonePreview && (
+                  <div className="phonePreview">
+                    Numéro envoyé à Firebase : <strong>{phonePreview}</strong>
+                  </div>
+                )}
+
+                <div id="recaptcha-container" className="recaptchaBox" />
+
                 <button className="primaryButton" disabled={loading || !firebaseConfigIsValid} type="submit">
-                  {loading ? 'Envoi...' : 'Recevoir le code SMS'}
+                  {loading ? 'Envoi du SMS...' : 'Recevoir le code OTP'}
                 </button>
               </form>
             ) : (
               <form className="formStack" onSubmit={handleConfirmPhone}>
+                <div className="otpBanner successTone">
+                  <span>✓</span>
+                  <div>
+                    <strong>Code envoyé</strong>
+                    <small>Entre les 6 chiffres reçus par SMS.</small>
+                  </div>
+                </div>
+
                 <label>
-                  Code SMS
-                  <input value={smsCode} onChange={(event) => setSmsCode(event.target.value)} placeholder="123456" />
+                  Code OTP
+                  <input
+                    value={smsCode}
+                    onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                  />
                 </label>
-                <button className="primaryButton" disabled={loading} type="submit">
+
+                <button className="primaryButton" disabled={loading || smsCode.length !== 6} type="submit">
                   {loading ? 'Vérification...' : 'Confirmer le code'}
                 </button>
-                <button className="secondaryButton" type="button" onClick={() => setConfirmationResult(null)}>
+                <button className="secondaryButton" type="button" onClick={resetPhoneFlow}>
                   Changer de numéro
                 </button>
               </form>
